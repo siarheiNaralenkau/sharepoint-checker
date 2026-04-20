@@ -1,0 +1,58 @@
+tenant_id: "<tenant-id>"
+client_id: "<client-id>"
+client_secret_env: "SP_CHECKER_CLIENT_SECRET"
+
+discovery:
+  mode: "prefix"            # prefix | all-visible
+  site_prefixes:
+    - "EPAMSAPSEProjects"
+  search_keywords:
+    - "EPAMSAPSEProjects"
+  include_site_url_patterns:
+    - "/sites/EPAMSAPSEProjects"
+  exclude_site_url_patterns: []
+
+sharepoint:
+  library_name: "Shared Documents"
+  root_folder: "/"
+  project_folder_regex: "^Project-[A-Za-z0-9]+-.+$"
+
+rules:
+  required_folders:
+    - "Planning"
+    - "Risks"
+    - "Reports"
+    - "Architecture"
+  required_files:
+    Planning:
+      - "project-charter.docx"
+      - "roadmap.xlsx"
+    Reports:
+      - "weekly-status.xlsx"
+      - "status-summary.pptx"
+
+execution:
+  max_parallel_sites: 4
+  page_size: 200
+  retry_attempts: 5
+  retry_backoff_seconds: 2
+
+reporting:
+  output_dir: "./out"
+  formats:
+    - "json"
+    - "csv"
+    - "html"
+  only_failures_in_notification: false
+  email:
+    enabled: false
+    recipients:
+      - "pm@example.com"
+    smtp_host: "smtp.office365.com"
+    smtp_port: 587
+    smtp_user_env: "SP_CHECKER_SMTP_USER"
+    smtp_password_env: "SP_CHECKER_SMTP_PASSWORD"
+    from_address: "noreply@example.com"
+  teams:
+    enabled: false
+    webhook_env: "SP_CHECKER_TEAMS_WEBHOOK"
