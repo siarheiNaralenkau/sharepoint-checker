@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, Field
 
+class DelegatedAuthConfig(BaseModel):
+    token_cache_path: str = "~/.sp-checker-token-cache.json"
 
 class DiscoveryConfig(BaseModel):
     mode: str = "prefix"
@@ -56,8 +58,9 @@ class ReportingConfig(BaseModel):
 class CheckerConfig(BaseModel):
     tenant_id: str
     client_id: str
-    client_secret_env: str = "SP_CHECKER_CLIENT_SECRET"
+    client_secret_env: str = "SP_CHECKER_CLIENT_SECRET"  # kept for backward compat
     client_certificate_path: Optional[str] = None
+    delegated_auth: Optional[DelegatedAuthConfig] = None  # None = use app-only flow
     discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
     sharepoint: SharePointConfig = Field(default_factory=SharePointConfig)
     rules: RulesConfig = Field(default_factory=RulesConfig)

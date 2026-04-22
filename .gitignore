@@ -50,3 +50,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Token cache (contains refresh token — never commit)
+*.sp-checker-token-cache.json
+.sp-checker-token-cache.json

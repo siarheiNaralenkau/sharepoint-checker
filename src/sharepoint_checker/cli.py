@@ -178,3 +178,31 @@ def dry_run(
         raise typer.Exit(4)
 
     typer.echo(f"[dry-run] Would check {summary.total_sites} site(s)")
+
+
+@app.command(name="auth-login")
+def auth_login(
+    config_path: _CONFIG_OPT = Path("config/checker-config.yaml"),
+) -> None:
+    """Authenticate via device code flow (MFA-compatible). Run once to cache credentials."""
+    configure_logging("WARNING")
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(f"[CONFIG ERROR] {exc}", err=True)
+        raise typer.Exit(2)
+
+    if not config.delegated_auth:
+        typer.echo(
+            "[ERROR] 'delegated_auth' is not configured in checker-config.yaml. "
+            "Add the 'delegated_auth' section to use device code flow.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    from .auth import AuthError, TokenProvider
+    try:
+        TokenProvider(config).login_device_code()
+    except AuthError as exc:
+        typer.echo(f"[AUTH ERROR] {exc}", err=True)
+        raise typer.Exit(3)

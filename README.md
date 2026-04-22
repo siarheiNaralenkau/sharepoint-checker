@@ -17,103 +17,161 @@ delivered by email and/or Microsoft Teams.
 ## Requirements
 
 - Python 3.12+
-- Microsoft Entra app registration with `Sites.Read.All` application permission (admin-consented)
+- A Microsoft Entra ID app registration with delegated `Sites.Read.All` permission
+- A Microsoft 365 account with access to the SharePoint sites you want to check
 
 ## Installation
 
 ```bash
-# Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-
-# Install the package
+source .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+## Authentication Setup
+
+The tool authenticates **as your Microsoft 365 account** using the Device Code Flow — fully
+compatible with SSO and MFA. No passwords or client secrets are required.
+
+**One-time setup** (follow [docs/entra-app-setup-delegated.md](docs/entra-app-setup-delegated.md)):
+
+1. Register an app in Microsoft Entra ID and enable **Allow public client flows**.
+2. Add the **delegated** permission `Sites.Read.All` and grant consent.
+3. Set `tenant_id`, `client_id`, and `delegated_auth.token_cache_path` in your config file.
+4. Run `sp-checker auth-login` once — authenticate in a browser with your Microsoft account and MFA. A refresh token is saved locally and reused silently on all subsequent runs.
+
+Re-run `sp-checker auth-login` when the refresh token expires (~90 days, or as set by your tenant policy).
+
 ## Configuration
 
-Copy and edit the example configuration:
+Copy the template and edit it:
 
 ```bash
 cp config/checker-config.yaml config/my-config.yaml
 ```
 
-Key fields:
+Minimal configuration for delegated auth:
+
+```yaml
+tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+client_id: "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
+
+delegated_auth:
+  token_cache_path: "~/.sp-checker-token-cache.json"
+
+discovery:
+  mode: "prefix"
+  site_prefixes:
+    - "MyProjectSites"
+
+sharepoint:
+  library_name: "Shared Documents"
+  project_folder_regex: "^Project-[A-Za-z0-9]+-.+$"
+
+rules:
+  required_folders:
+    - "Planning"
+    - "Reports"
+  required_files:
+    Planning:
+      - "project-charter.docx"
+```
+
+### All configuration fields
 
 | Field | Description |
-|-------|-------------|
-| `tenant_id` | Microsoft Entra tenant ID |
-| `client_id` | App registration client ID |
-| `client_secret_env` | Name of env var holding the client secret |
-| `discovery.mode` | `prefix` (search by keyword) or `all-visible` |
-| `discovery.site_prefixes` | Site name prefixes to search for |
+|---|---|
+| `tenant_id` | Microsoft Entra Directory (tenant) ID |
+| `client_id` | App registration Application (client) ID |
+| `delegated_auth.token_cache_path` | Path where MSAL stores the refresh token (default: `~/.sp-checker-token-cache.json`) |
+| `discovery.mode` | `prefix` — search by keyword; `all-visible` — enumerate all visible sites |
+| `discovery.site_prefixes` | Site name prefixes to search for (used in `prefix` mode) |
+| `discovery.include_site_url_patterns` | Regex patterns — only sites whose URL matches are included |
+| `discovery.exclude_site_url_patterns` | Regex patterns — sites whose URL matches are skipped |
 | `sharepoint.library_name` | Document library name (default: `Shared Documents`) |
-| `sharepoint.project_folder_regex` | Regex that matches project folder names |
-| `rules.required_folders` | List of mandatory subfolder names |
-| `rules.required_files` | Map of folder → list of mandatory filenames |
-| `reporting.formats` | Output formats: `json`, `csv`, `html` |
-| `reporting.teams.enabled` | Enable Teams webhook notification |
-| `reporting.email.enabled` | Enable email notification |
+| `sharepoint.root_folder` | Root folder path within the library (default: `/`) |
+| `sharepoint.project_folder_regex` | Regex that project folder names must match |
+| `rules.required_folders` | Subfolder names that must exist in every project folder |
+| `rules.required_files` | Map of subfolder name → list of filenames that must exist |
+| `execution.max_parallel_sites` | Number of sites processed concurrently (default: `4`) |
+| `execution.page_size` | Graph API page size (default: `200`) |
+| `reporting.output_dir` | Directory for report files (default: `./out`) |
+| `reporting.formats` | Report formats to generate: `json`, `csv`, `html` |
+| `reporting.teams.enabled` | Send summary to a Teams incoming webhook |
+| `reporting.email.enabled` | Send summary by email |
 
 ## Environment Variables
 
+No environment variables are required for the delegated auth flow. Optional variables for notifications:
+
 ```bash
-# Required — client secret for app registration
-export SP_CHECKER_CLIENT_SECRET="your-secret-here"
+# Microsoft Teams incoming webhook URL
+export SP_CHECKER_TEAMS_WEBHOOK="https://your-tenant.webhook.office.com/webhookb2/..."
 
-# Optional — Teams incoming webhook
-export SP_CHECKER_TEAMS_WEBHOOK="https://..."
-
-# Optional — SMTP credentials for email
+# SMTP credentials for email notifications
 export SP_CHECKER_SMTP_USER="noreply@example.com"
 export SP_CHECKER_SMTP_PASSWORD="smtp-password"
 ```
 
-Or copy `.env.example` to `.env` and populate it (use a tool like `direnv` or `dotenv`).
+Copy `.env.example` to `.env` and populate it. Load it before running the tool:
+
+```bash
+export $(grep -v '^#' .env | xargs)
+```
 
 ## Usage
+
+### Authenticate (first time and after token expiry)
+
+```bash
+sp-checker auth-login --config config/my-config.yaml
+```
+
+The terminal prints a URL and a short code. Open the URL in a browser, enter the code, and
+sign in with your Microsoft 365 account (including MFA approval). The refresh token is saved
+to `delegated_auth.token_cache_path` and reused automatically on all future runs.
 
 ### Validate config
 
 ```bash
-sp-checker validate-config --config config/checker-config.yaml
+sp-checker validate-config --config config/my-config.yaml
 ```
 
 ### Dry run (site discovery only, no content read)
 
 ```bash
-sp-checker dry-run --config config/checker-config.yaml
+sp-checker dry-run --config config/my-config.yaml
 ```
 
 ### Full run
 
 ```bash
-sp-checker run --config config/checker-config.yaml
+sp-checker run --config config/my-config.yaml
 ```
 
 ### Override output directory or site prefix
 
 ```bash
-sp-checker run --config config/checker-config.yaml \
+sp-checker run --config config/my-config.yaml \
   --output-dir ./reports \
-  --site-prefix EPAMSAPSEProjects
+  --site-prefix MyProjectSites
 ```
 
 ### Disable notifications for a single run
 
 ```bash
-sp-checker run --config config/checker-config.yaml --no-notify
+sp-checker run --config config/my-config.yaml --no-notify
 ```
 
 ## Exit Codes
 
 | Code | Meaning |
-|------|---------|
-| `0`  | Completed — no validation failures |
-| `1`  | Completed — validation failures found |
-| `2`  | Configuration error |
-| `3`  | Authentication / authorization error |
-| `4`  | Runtime / system error |
+|---|---|
+| `0` | Completed — no validation failures |
+| `1` | Completed — validation failures found |
+| `2` | Configuration error |
+| `3` | Authentication / authorization error — re-run `auth-login` if the token has expired |
+| `4` | Runtime / system error |
 
 ## Output Files
 
@@ -138,7 +196,7 @@ sharepoint-checker/
   src/sharepoint_checker/
     cli.py                  # CLI entry point (typer)
     config.py               # Config loader and validator
-    auth.py                 # MSAL token provider
+    auth.py                 # MSAL token provider (device code + app-only)
     graph_client.py         # Async Graph API client (httpx + tenacity)
     site_discovery.py       # Tenant-wide site discovery
     library_resolver.py     # Resolve document library drive ID
@@ -164,6 +222,9 @@ sharepoint-checker/
       patterns.py           # Regex helpers
   config/
     checker-config.yaml     # Configuration template
+  docs/
+    entra-app-setup-delegated.md   # Entra ID app registration guide (delegated auth)
+    entra-app-setup.md             # Entra ID app registration guide (app-only auth)
   tests/
     unit/                   # Unit tests (mocked Graph responses)
     integration/            # Integration tests (real tenant)
@@ -172,12 +233,12 @@ sharepoint-checker/
 
 ## Migrating to Azure Function
 
-The core orchestration in `run_checker.py` exposes a single `run_checker(config) -> RunSummary` coroutine that is framework-agnostic. To wrap it:
+The core orchestration in `run_checker.py` exposes a single `run_checker(config) -> RunSummary`
+coroutine that is framework-agnostic. To wrap it:
 
 **Timer trigger (weekly):**
 ```python
 import azure.functions as func
-import asyncio
 from sharepoint_checker.config import load_config
 from sharepoint_checker.orchestration.run_checker import run_checker
 
@@ -198,13 +259,6 @@ async def http_check(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(summary.model_dump_json(), mimetype="application/json")
 ```
 
-## Authentication Setup
-
-1. Register an application in Microsoft Entra (Azure AD).
-2. Add the **application permission** `Sites.Read.All` (not delegated).
-3. Grant admin consent for the permission.
-4. Create a client secret (or upload a certificate for production).
-5. Set `tenant_id` and `client_id` in config; put the secret in `SP_CHECKER_CLIENT_SECRET`.
-
-> For production, prefer a **certificate credential** over a client secret. Set
-> `client_certificate_path` in the config and omit `client_secret_env`.
+> For Azure Function deployments, use the app-only auth flow (client secret or certificate)
+> instead of device code flow — a timer-triggered function cannot complete browser-based
+> authentication. See [docs/entra-app-setup.md](docs/entra-app-setup.md) for setup instructions.
