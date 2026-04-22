@@ -175,7 +175,7 @@ async def run_checker(
         logger.info("Processing %d site(s)", len(sites))
 
         if dry_run:
-            logger.info("[dry-run] Would process: %s", [s.site_url for s in sites])
+            logger.info("[dry-run] Would process: %s", [s.display_name or s.site_id for s in sites])
             summary.total_sites = len(sites)
             summary.completed_at = datetime.now(timezone.utc)
             return summary

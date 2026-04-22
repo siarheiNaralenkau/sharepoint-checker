@@ -8,7 +8,7 @@ delegated_auth:
 discovery:
   mode: "prefix"            # prefix | all-visible
   site_prefixes:
-    - "EPAM SAP"
+    - "SAP"
   search_keywords:
     - "EPAMSAPSEProjects"
   include_site_url_patterns:
