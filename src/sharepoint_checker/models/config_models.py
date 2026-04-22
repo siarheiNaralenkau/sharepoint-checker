@@ -7,11 +7,9 @@ class DelegatedAuthConfig(BaseModel):
     token_cache_path: str = "~/.sp-checker-token-cache.json"
 
 class DiscoveryConfig(BaseModel):
-    mode: str = "prefix"
+    mode: str = "all-visible"
     site_prefixes: list[str] = Field(default_factory=list)
-    search_keywords: list[str] = Field(default_factory=list)
-    include_site_url_patterns: list[str] = Field(default_factory=list)
-    exclude_site_url_patterns: list[str] = Field(default_factory=list)
+    display_name_patterns: list[str] = Field(default_factory=list)
 
 
 class SharePointConfig(BaseModel):

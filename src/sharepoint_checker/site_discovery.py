@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import AsyncIterator
+import re
 
 from .graph_client import GraphClient
 from .models.config_models import DiscoveryConfig
 from .models.result_models import DiscoveredSite
-from .utils.patterns import matches_any
 
 logger = logging.getLogger(__name__)
+
+_SITE_FIELDS = "id,name,webUrl,displayName,siteCollection"
 
 
 class SiteDiscovery:
@@ -28,10 +29,12 @@ class SiteDiscovery:
         sites = [self._to_site(s) for s in raw]
         sites = self._apply_filters(sites)
         logger.info("Discovered %d site(s) after filtering", len(sites))
+        for site in sites:
+            logger.info("  Site — displayName: %r  siteId: %s", site.display_name or site.site_name, site.site_id)
         return sites
 
     async def _discover_by_prefix(self) -> list[dict]:
-        keywords = self._config.search_keywords or self._config.site_prefixes
+        keywords = self._config.site_prefixes
         if not keywords:
             logger.warning("prefix mode configured but no keywords/prefixes — falling back to all-visible")
             return await self._discover_all()
@@ -40,7 +43,7 @@ class SiteDiscovery:
         for keyword in keywords:
             logger.info("Searching sites with keyword %r", keyword)
             url = self._client.url("/sites")
-            items = await self._client.get_paginated(url, {"search": keyword})
+            items = await self._client.get_paginated(url, {"search": keyword, "$select": _SITE_FIELDS})
             for item in items:
                 seen[item["id"]] = item
 
@@ -49,21 +52,20 @@ class SiteDiscovery:
     async def _discover_all(self) -> list[dict]:
         logger.info("Enumerating all visible sites")
         url = self._client.url("/sites")
-        return await self._client.get_paginated(url, {"$filter": "siteCollection/root ne null"})
+        return await self._client.get_paginated(url, {"search": "*", "$select": _SITE_FIELDS})
 
     def _apply_filters(self, sites: list[DiscoveredSite]) -> list[DiscoveredSite]:
-        include = self._config.include_site_url_patterns
-        exclude = self._config.exclude_site_url_patterns
+        patterns = self._config.display_name_patterns
+        if not patterns:
+            return sites
 
-        filtered: list[DiscoveredSite] = []
+        filtered = []
         for site in sites:
-            if exclude and matches_any(site.site_url, exclude):
-                logger.debug("Excluding site %s (matched exclude pattern)", site.site_url)
-                continue
-            if include and not matches_any(site.site_url, include):
-                logger.debug("Skipping site %s (no include pattern matched)", site.site_url)
-                continue
-            filtered.append(site)
+            name = site.display_name or site.site_name
+            if any(re.search(p, name, re.IGNORECASE) for p in patterns):
+                filtered.append(site)
+            else:
+                logger.debug("Skipping site %r (no display_name_pattern matched)", name)
 
         return filtered
 

@@ -6,14 +6,10 @@ delegated_auth:
   token_cache_path: "~/.sp-checker-token-cache.json"   # where MSAL stores the refresh token
 
 discovery:
-  mode: "prefix"            # prefix | all-visible
-  site_prefixes:
+  mode: "all-visible"       # all-visible | prefix
+  site_prefixes: []         # used as Graph search terms in prefix mode only
+  display_name_patterns:    # keep only sites whose displayName matches any pattern (case-insensitive regex)
     - "EPAM SAP"
-  search_keywords:
-    - "EPAMSAPSEProjects"
-  include_site_url_patterns:
-    - "/sites/EPAMSAPSEProjects"
-  exclude_site_url_patterns: []
 
 sharepoint:
   library_name: "Shared Documents"
