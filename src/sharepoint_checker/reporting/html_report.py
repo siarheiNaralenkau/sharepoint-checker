@@ -31,8 +31,9 @@ _TEMPLATE = """<!DOCTYPE html>
   .stat-card { background: #f3f2f1; border-radius: 6px; padding: 1rem; text-align: center; }
   .stat-value { font-size: 2rem; font-weight: bold; }
   .stat-label { font-size: .8rem; color: #605e5c; }
-  .missing-list { margin: 0; padding-left: 1.2rem; }
   a { color: #0078d4; }
+  .yes { color: #107c10; }
+  .no { color: #d83b01; }
 </style>
 </head>
 <body>
@@ -45,52 +46,32 @@ _TEMPLATE = """<!DOCTYPE html>
 <h2>Summary</h2>
 <div class="summary-grid">
   <div class="stat-card"><div class="stat-value">{{ summary.total_sites }}</div><div class="stat-label">Sites Checked</div></div>
-  <div class="stat-card"><div class="stat-value">{{ summary.total_projects }}</div><div class="stat-label">Project Folders</div></div>
   <div class="stat-card"><div class="stat-value pass">{{ summary.pass_count }}</div><div class="stat-label">Passed</div></div>
   <div class="stat-card"><div class="stat-value fail">{{ summary.fail_count }}</div><div class="stat-label">Failed</div></div>
 </div>
 
-<h2>Site Overview</h2>
+<h2>Site Results</h2>
 <table>
-  <thead><tr><th>Site</th><th>Library</th><th>Projects</th><th>Pass</th><th>Fail</th><th>Status</th></tr></thead>
+  <thead>
+    <tr>
+      <th>Site</th>
+      <th>Leadership Folder</th>
+      <th>Roster Found</th>
+      <th>Roster Has Files</th>
+      <th>Status</th>
+      <th>Failure Reason</th>
+    </tr>
+  </thead>
   <tbody>
   {% for site in summary.site_results %}
     <tr>
-      <td><a href="{{ site.site_url }}" target="_blank">{{ site.site_name }}</a></td>
-      <td>{{ site.library_name }}</td>
-      <td>{{ site.project_count }}</td>
-      <td class="pass">{{ site.pass_count }}</td>
-      <td class="{% if site.fail_count > 0 %}fail{% endif %}">{{ site.fail_count }}</td>
+      <td><a href="{{ site.site_url }}" target="_blank">{{ site.site_name or site.site_id }}</a></td>
+      <td>{{ site.leadership_folder or "—" }}</td>
+      <td class="{{ 'yes' if site.roster_found else 'no' }}">{{ "Yes" if site.roster_found else "No" }}</td>
+      <td class="{{ 'yes' if site.roster_has_files else 'no' }}">{{ "Yes" if site.roster_has_files else "No" }}</td>
       <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
+      <td>{{ site.failure_reason or site.error or "" }}</td>
     </tr>
-  {% endfor %}
-  </tbody>
-</table>
-
-<h2>Project Folder Details</h2>
-<table>
-  <thead><tr><th>Site</th><th>Project Folder</th><th>Folder Check</th><th>Missing Folders</th><th>File Check</th><th>Missing Files</th><th>Overall</th></tr></thead>
-  <tbody>
-  {% for site in summary.site_results %}
-    {% for proj in site.project_results %}
-    <tr>
-      <td>{{ site.site_name }}</td>
-      <td>{{ proj.project_folder }}</td>
-      <td class="{{ proj.folder_check.status.value | lower }}">{{ proj.folder_check.status.value }}</td>
-      <td>
-        {% if proj.folder_check.missing_folders %}
-        <ul class="missing-list">{% for f in proj.folder_check.missing_folders %}<li>{{ f }}</li>{% endfor %}</ul>
-        {% endif %}
-      </td>
-      <td class="{{ proj.file_check.status.value | lower }}">{{ proj.file_check.status.value }}</td>
-      <td>
-        {% if proj.file_check.missing_files %}
-        <ul class="missing-list">{% for f in proj.file_check.missing_files %}<li>{{ f }}</li>{% endfor %}</ul>
-        {% endif %}
-      </td>
-      <td class="{{ proj.overall_status.value | lower }}">{{ proj.overall_status.value }}</td>
-    </tr>
-    {% endfor %}
   {% endfor %}
   </tbody>
 </table>

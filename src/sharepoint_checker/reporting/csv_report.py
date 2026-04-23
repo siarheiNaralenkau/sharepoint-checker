@@ -12,13 +12,11 @@ _HEADERS = [
     "run_id",
     "site_name",
     "site_url",
-    "library_name",
-    "project_folder",
-    "folder_status",
-    "missing_folders",
-    "file_status",
-    "missing_files",
+    "leadership_folder",
+    "roster_found",
+    "roster_has_files",
     "overall_status",
+    "failure_reason",
     "error",
 ]
 
@@ -32,36 +30,17 @@ def write_csv_report(summary: RunSummary, output_dir: str | Path) -> Path:
         writer = csv.DictWriter(f, fieldnames=_HEADERS)
         writer.writeheader()
         for site in summary.site_results:
-            if not site.project_results:
-                writer.writerow({
-                    "run_id": summary.run_id,
-                    "site_name": site.site_name,
-                    "site_url": site.site_url,
-                    "library_name": site.library_name,
-                    "project_folder": "",
-                    "folder_status": "",
-                    "missing_folders": "",
-                    "file_status": "",
-                    "missing_files": "",
-                    "overall_status": site.overall_status.value,
-                    "error": site.error or "",
-                })
-                continue
-
-            for proj in site.project_results:
-                writer.writerow({
-                    "run_id": summary.run_id,
-                    "site_name": site.site_name,
-                    "site_url": site.site_url,
-                    "library_name": site.library_name,
-                    "project_folder": proj.project_folder,
-                    "folder_status": proj.folder_check.status.value,
-                    "missing_folders": "; ".join(proj.folder_check.missing_folders),
-                    "file_status": proj.file_check.status.value,
-                    "missing_files": "; ".join(proj.file_check.missing_files),
-                    "overall_status": proj.overall_status.value,
-                    "error": proj.error or "",
-                })
+            writer.writerow({
+                "run_id": summary.run_id,
+                "site_name": site.site_name,
+                "site_url": site.site_url,
+                "leadership_folder": site.leadership_folder or "",
+                "roster_found": site.roster_found,
+                "roster_has_files": site.roster_has_files,
+                "overall_status": site.overall_status.value,
+                "failure_reason": site.failure_reason or "",
+                "error": site.error or "",
+            })
 
     logger.info("CSV report written to %s", path)
     return path

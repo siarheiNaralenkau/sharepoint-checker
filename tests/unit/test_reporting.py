@@ -2,15 +2,11 @@ import json
 import csv
 import tempfile
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 
 from sharepoint_checker.models.result_models import (
     CheckStatus,
-    FileCheckResult,
-    FolderCheckResult,
-    ProjectCheckResult,
     RunSummary,
     SiteCheckResult,
 )
@@ -18,32 +14,16 @@ from sharepoint_checker.reporting import write_json_report, write_csv_report, wr
 
 
 def _make_summary(fail: bool = False) -> RunSummary:
-    fc = FolderCheckResult(
-        status=CheckStatus.FAIL if fail else CheckStatus.PASS,
-        required_folders=["Planning", "Risks"],
-        found_folders=["Planning"] if fail else ["Planning", "Risks"],
-        missing_folders=["Risks"] if fail else [],
-    )
-    filec = FileCheckResult(
-        status=CheckStatus.PASS,
-        missing_files=[],
-    )
-    proj = ProjectCheckResult(
-        project_folder="Project-SAP-Stream1",
-        folder_check=fc,
-        file_check=filec,
-        overall_status=CheckStatus.FAIL if fail else CheckStatus.PASS,
-    )
     site = SiteCheckResult(
-        site_name="EPAMSAPProjects",
-        site_url="https://epam.sharepoint.com/sites/EPAMSAPProjects",
+        site_name="EPAMSAPSEProjectsCSDArea",
+        site_url="https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea",
         site_id="site1",
-        library_name="Shared Documents",
-        project_results=[proj],
+        drive_id="drive1",
+        leadership_folder="Project SAP-mMXG-leadership" if not fail else None,
+        roster_found=not fail,
+        roster_has_files=not fail,
+        failure_reason=None if not fail else "No folder matching regex found at root",
         overall_status=CheckStatus.FAIL if fail else CheckStatus.PASS,
-        project_count=1,
-        pass_count=0 if fail else 1,
-        fail_count=1 if fail else 0,
     )
     return RunSummary(
         run_id="2026-04-20T12:00:00Z",
@@ -51,7 +31,6 @@ def _make_summary(fail: bool = False) -> RunSummary:
         completed_at=datetime(2026, 4, 20, 12, 1, 0, tzinfo=timezone.utc),
         site_results=[site],
         total_sites=1,
-        total_projects=1,
         pass_count=0 if fail else 1,
         fail_count=1 if fail else 0,
         overall_status=CheckStatus.FAIL if fail else CheckStatus.PASS,
@@ -76,7 +55,7 @@ def test_csv_report_rows():
             rows = list(csv.DictReader(f))
     assert len(rows) == 1
     assert rows[0]["overall_status"] == "FAIL"
-    assert "Risks" in rows[0]["missing_folders"]
+    assert "regex" in rows[0]["failure_reason"]
 
 
 def test_html_report_contains_key_data():
@@ -85,6 +64,5 @@ def test_html_report_contains_key_data():
         path = write_html_report(summary, d)
         html = path.read_text(encoding="utf-8")
     assert "2026-04-20T12:00:00Z" in html
-    assert "EPAMSAPProjects" in html
-    assert "Project-SAP-Stream1" in html
+    assert "EPAMSAPSEProjectsCSDArea" in html
     assert "FAIL" in html

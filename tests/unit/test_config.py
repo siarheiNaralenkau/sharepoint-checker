@@ -17,19 +17,11 @@ FULL_CONFIG = {
     "client_secret_env": "MY_SECRET",
     "discovery": {
         "mode": "prefix",
-        "site_prefixes": ["EPAMTest"],
-        "search_keywords": ["EPAMTest"],
-    },
-    "sharepoint": {
-        "library_name": "Shared Documents",
-        "root_folder": "/",
-        "project_folder_regex": r"^Project-[A-Za-z0-9]+-.+$",
+        "site_prefixes": ["EPAM SAP SE"],
     },
     "rules": {
-        "required_folders": ["Planning", "Risks"],
-        "required_files": {
-            "Planning": ["charter.docx"],
-        },
+        "leadership_folder_regex": r"^Project SAP-[a-z][A-Z]{3,4}-leadership$",
+        "roster_folder_name": "Roster",
     },
     "execution": {
         "max_parallel_sites": 2,
@@ -62,7 +54,8 @@ def test_load_minimal_config():
 def test_load_full_config():
     path = _write_config(FULL_CONFIG)
     config = load_config(path)
-    assert config.rules.required_folders == ["Planning", "Risks"]
+    assert config.rules.leadership_folder_regex == r"^Project SAP-[a-z][A-Z]{3,4}-leadership$"
+    assert config.rules.roster_folder_name == "Roster"
     assert config.execution.max_parallel_sites == 2
     assert "json" in config.reporting.formats
 

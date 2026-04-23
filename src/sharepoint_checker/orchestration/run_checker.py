@@ -8,16 +8,11 @@ from typing import Optional
 from ..auth import TokenProvider
 from ..folder_scanner import FolderScanner
 from ..graph_client import GraphClient
-from ..library_resolver import LibraryNotFoundError, LibraryResolver
+from ..library_resolver import DriveResolver, NoDriveFoundError
 from ..models.config_models import CheckerConfig
-from ..models.result_models import (
-    CheckStatus,
-    ProjectCheckResult,
-    RunSummary,
-    SiteCheckResult,
-)
+from ..models.result_models import CheckStatus, RunSummary, SiteCheckResult
 from ..site_discovery import SiteDiscovery
-from ..validators import FileValidator, FolderValidator, NamingValidator
+from ..validators import NamingValidator
 
 logger = logging.getLogger(__name__)
 
@@ -29,120 +24,93 @@ async def _check_site(
     config: CheckerConfig,
     client: GraphClient,
 ) -> SiteCheckResult:
-    library_name = config.sharepoint.library_name
     result = SiteCheckResult(
         site_name=site_name,
         site_url=site_url,
         site_id=site_id,
-        library_name=library_name,
     )
 
+    # Step 1: Resolve drive
     try:
-        resolver = LibraryResolver(client)
-        drive_id = await resolver.resolve_drive_id(site_id, library_name)
-    except LibraryNotFoundError as exc:
-        logger.warning("Site %s: %s", site_url, exc)
-        result.error = str(exc)
-        result.overall_status = CheckStatus.ERROR
+        resolver = DriveResolver(client)
+        drive_id = await resolver.get_first_drive_id(site_id)
+        result.drive_id = drive_id
+    except NoDriveFoundError as exc:
+        result.failure_reason = str(exc)
+        result.overall_status = CheckStatus.FAIL
         return result
     except Exception as exc:
-        logger.error("Site %s: unexpected error resolving library: %s", site_url, exc)
+        logger.error("Site %s: unexpected error getting drive: %s", site_url, exc)
         result.error = str(exc)
         result.overall_status = CheckStatus.ERROR
         return result
 
     scanner = FolderScanner(client)
-    naming_val = NamingValidator(config.sharepoint.project_folder_regex)
-    folder_val = FolderValidator(config.rules.required_folders)
-    file_val = FileValidator(config.rules.required_files)
+    naming_val = NamingValidator(config.rules.leadership_folder_regex)
 
+    # Step 2: List root, find leadership folder
     try:
-        root_items = await scanner.list_root_folders(drive_id, config.sharepoint.root_folder)
+        root_items = await scanner.list_root_folders(drive_id)
     except Exception as exc:
-        logger.error("Site %s: failed to list root folder: %s", site_url, exc)
+        logger.error("Site %s: failed to list root: %s", site_url, exc)
         result.error = str(exc)
         result.overall_status = CheckStatus.ERROR
         return result
 
-    project_folders = [item for item in root_items if naming_val.is_project_folder(item.name)]
-    logger.info("Site %s: found %d project folder(s)", site_url, len(project_folders))
+    leadership_matches = [item for item in root_items if naming_val.is_project_folder(item.name)]
+    if not leadership_matches:
+        result.failure_reason = f"No folder matching {config.rules.leadership_folder_regex!r} found at root"
+        result.overall_status = CheckStatus.FAIL
+        return result
 
-    project_results: list[ProjectCheckResult] = []
-    for pf in project_folders:
-        proj_result = await _check_project_folder(
-            drive_id=drive_id,
-            project_folder=pf,
-            folder_val=folder_val,
-            file_val=file_val,
-            scanner=scanner,
-            required_files=config.rules.required_files,
-        )
-        project_results.append(proj_result)
+    leadership_folder = leadership_matches[0]
+    result.leadership_folder = leadership_folder.name
+    logger.info("Site %s: found leadership folder %r", site_url, leadership_folder.name)
 
-    pass_count = sum(1 for r in project_results if r.overall_status == CheckStatus.PASS)
-    fail_count = len(project_results) - pass_count
-    overall = CheckStatus.PASS if fail_count == 0 else CheckStatus.FAIL
-
-    result.project_results = project_results
-    result.project_count = len(project_results)
-    result.pass_count = pass_count
-    result.fail_count = fail_count
-    result.overall_status = overall
-    return result
-
-
-async def _check_project_folder(
-    drive_id: str,
-    project_folder,
-    folder_val: FolderValidator,
-    file_val: FileValidator,
-    scanner: FolderScanner,
-    required_files: dict[str, list[str]],
-) -> ProjectCheckResult:
+    # Step 3: List leadership folder children — must be non-empty
     try:
-        children = await scanner.list_folder_children(
-            drive_id, project_folder.item_id, project_folder.name
-        )
-        subfolder_names = [c.name for c in children if c.is_folder]
-        folder_check = folder_val.validate(subfolder_names)
-
-        folder_contents: dict[str, list[str]] = {}
-        for folder_name in required_files:
-            sub_children = await scanner.list_subfolder_children(
-                drive_id, project_folder.item_id, folder_name, project_folder.name
-            )
-            folder_contents[folder_name] = [c.name for c in sub_children if not c.is_folder]
-
-        file_check = file_val.validate(folder_contents)
-
-        overall = (
-            CheckStatus.PASS
-            if folder_check.status == CheckStatus.PASS and file_check.status == CheckStatus.PASS
-            else CheckStatus.FAIL
-        )
-
-        return ProjectCheckResult(
-            project_folder=project_folder.name,
-            folder_check=folder_check,
-            file_check=file_check,
-            overall_status=overall,
-        )
+        children = await scanner.list_folder_children(drive_id, leadership_folder.item_id)
     except Exception as exc:
-        logger.error("Error checking project folder %s: %s", project_folder.name, exc)
-        from ..models.result_models import FolderCheckResult, FileCheckResult
+        logger.error("Site %s: failed to list %r children: %s", site_url, leadership_folder.name, exc)
+        result.error = str(exc)
+        result.overall_status = CheckStatus.ERROR
+        return result
 
-        return ProjectCheckResult(
-            project_folder=project_folder.name,
-            folder_check=FolderCheckResult(
-                status=CheckStatus.ERROR,
-                required_folders=[],
-                found_folders=[],
-                missing_folders=[],
-            ),
-            file_check=FileCheckResult(status=CheckStatus.ERROR, missing_files=[]),
-            overall_status=CheckStatus.ERROR,
-            error=str(exc),
-        )
+    if not children:
+        result.failure_reason = f"Leadership folder {leadership_folder.name!r} is empty"
+        result.overall_status = CheckStatus.FAIL
+        return result
+
+    # Step 4: Roster folder must be present
+    roster_name = config.rules.roster_folder_name
+    roster_matches = [c for c in children if c.is_folder and c.name.lower() == roster_name.lower()]
+    if not roster_matches:
+        result.failure_reason = f"'{roster_name}' folder not found inside {leadership_folder.name!r}"
+        result.overall_status = CheckStatus.FAIL
+        return result
+
+    result.roster_found = True
+    roster_folder = roster_matches[0]
+
+    # Step 5: Roster must contain at least one file
+    try:
+        roster_children = await scanner.list_folder_children(drive_id, roster_folder.item_id)
+    except Exception as exc:
+        logger.error("Site %s: failed to list Roster children: %s", site_url, exc)
+        result.error = str(exc)
+        result.overall_status = CheckStatus.ERROR
+        return result
+
+    roster_files = [c for c in roster_children if not c.is_folder]
+    if not roster_files:
+        result.failure_reason = f"'{roster_name}' folder contains no files"
+        result.overall_status = CheckStatus.FAIL
+        return result
+
+    result.roster_has_files = True
+    result.overall_status = CheckStatus.PASS
+    logger.info("Site %s: PASS", site_url)
+    return result
 
 
 async def run_checker(
@@ -194,23 +162,20 @@ async def run_checker(
             *[bounded_check(site) for site in sites], return_exceptions=False
         )
 
-    total_projects = sum(r.project_count for r in site_results)
-    pass_count = sum(r.pass_count for r in site_results)
-    fail_count = sum(r.fail_count for r in site_results)
+    pass_count = sum(1 for r in site_results if r.overall_status == CheckStatus.PASS)
+    fail_count = len(site_results) - pass_count
     overall = CheckStatus.PASS if fail_count == 0 else CheckStatus.FAIL
 
     summary.site_results = list(site_results)
     summary.total_sites = len(site_results)
-    summary.total_projects = total_projects
     summary.pass_count = pass_count
     summary.fail_count = fail_count
     summary.overall_status = overall
     summary.completed_at = datetime.now(timezone.utc)
 
     logger.info(
-        "Run complete: %d site(s), %d project(s), %d PASS, %d FAIL — overall %s",
+        "Run complete: %d site(s), %d PASS, %d FAIL — overall %s",
         len(site_results),
-        total_projects,
         pass_count,
         fail_count,
         overall.value,
