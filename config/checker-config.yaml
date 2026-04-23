@@ -1,34 +1,20 @@
-tenant_id: "b41b72d0-4e9f-4c26-8a69-f949f367c91d"
-client_id: "ca3b0207-fd51-4836-a3bc-fb4dba28afcf"
+tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+client_id: "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
 #client_secret_env: "SP_CHECKER_CLIENT_SECRET"
 
 delegated_auth:
   token_cache_path: "~/.sp-checker-token-cache.json"   # where MSAL stores the refresh token
 
 discovery:
-  mode: "all-visible"       # all-visible | prefix
-  site_prefixes: []         # used as Graph search terms in prefix mode only
-  display_name_patterns:    # keep only sites whose displayName matches any pattern (case-insensitive regex)
-    - "EPAM SAP"
-
-sharepoint:
-  library_name: "Shared Documents"
-  root_folder: "/"
-  project_folder_regex: "^Project-[A-Za-z0-9]+-.+$"
+  mode: "prefix"            # prefix | all-visible
+  site_prefixes:
+    - "EPAM SAP SE"         # Graph API search keyword — returns all sites whose name contains this
 
 rules:
-  required_folders:
-    - "Planning"
-    - "Risks"
-    - "Reports"
-    - "Architecture"
-  required_files:
-    Planning:
-      - "project-charter.docx"
-      - "roadmap.xlsx"
-    Reports:
-      - "weekly-status.xlsx"
-      - "status-summary.pptx"
+  # Regex matched against root-level folder names. First match is used.
+  leadership_folder_regex: "^Project SAP-[A-Za-z]+ leadership$"
+  # Name of the subfolder inside the leadership folder that must exist and contain files.
+  roster_folder_name: "Roster"
 
 execution:
   max_parallel_sites: 4

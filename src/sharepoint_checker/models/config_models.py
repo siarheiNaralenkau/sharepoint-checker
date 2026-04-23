@@ -3,24 +3,19 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, Field
 
+
 class DelegatedAuthConfig(BaseModel):
     token_cache_path: str = "~/.sp-checker-token-cache.json"
 
+
 class DiscoveryConfig(BaseModel):
-    mode: str = "all-visible"
+    mode: str = "prefix"
     site_prefixes: list[str] = Field(default_factory=list)
-    display_name_patterns: list[str] = Field(default_factory=list)
-
-
-class SharePointConfig(BaseModel):
-    library_name: str = "Shared Documents"
-    root_folder: str = "/"
-    project_folder_regex: str = r"^Project-[A-Za-z0-9]+-.+$"
 
 
 class RulesConfig(BaseModel):
-    required_folders: list[str] = Field(default_factory=list)
-    required_files: dict[str, list[str]] = Field(default_factory=dict)
+    leadership_folder_regex: str = r"^Project SAP-[A-Za-z]+ leadership$"
+    roster_folder_name: str = "Roster"
 
 
 class ExecutionConfig(BaseModel):
@@ -56,11 +51,10 @@ class ReportingConfig(BaseModel):
 class CheckerConfig(BaseModel):
     tenant_id: str
     client_id: str
-    client_secret_env: str = "SP_CHECKER_CLIENT_SECRET"  # kept for backward compat
+    client_secret_env: str = "SP_CHECKER_CLIENT_SECRET"
     client_certificate_path: Optional[str] = None
-    delegated_auth: Optional[DelegatedAuthConfig] = None  # None = use app-only flow
+    delegated_auth: Optional[DelegatedAuthConfig] = None
     discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
-    sharepoint: SharePointConfig = Field(default_factory=SharePointConfig)
     rules: RulesConfig = Field(default_factory=RulesConfig)
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     reporting: ReportingConfig = Field(default_factory=ReportingConfig)

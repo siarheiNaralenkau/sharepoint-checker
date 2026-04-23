@@ -6,33 +6,13 @@ delegated_auth:
   token_cache_path: "~/.sp-checker-token-cache.json"   # where MSAL stores the refresh token
 
 discovery:
-  mode: "prefix"            # prefix | all-visible
+  mode: "prefix"
   site_prefixes:
-    - "SAP"
-  search_keywords:
-    - "EPAMSAPSEProjects"
-  include_site_url_patterns:
-    - "/sites/EPAMSAPSEProjects"
-  exclude_site_url_patterns: []
-
-sharepoint:
-  library_name: "Shared Documents"
-  root_folder: "/"
-  project_folder_regex: "^Project-[A-Za-z0-9]+-.+$"
+    - "EPAM SAP SE"
 
 rules:
-  required_folders:
-    - "Planning"
-    - "Risks"
-    - "Reports"
-    - "Architecture"
-  required_files:
-    Planning:
-      - "project-charter.docx"
-      - "roadmap.xlsx"
-    Reports:
-      - "weekly-status.xlsx"
-      - "status-summary.pptx"
+  leadership_folder_regex: "^Project SAP-[A-Za-z]+ leadership$"
+  roster_folder_name: "Roaster"
 
 execution:
   max_parallel_sites: 4

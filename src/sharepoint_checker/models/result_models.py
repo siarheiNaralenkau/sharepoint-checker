@@ -21,36 +21,16 @@ class DiscoveredSite(BaseModel):
     display_name: Optional[str] = None
 
 
-class FolderCheckResult(BaseModel):
-    status: CheckStatus
-    required_folders: list[str]
-    found_folders: list[str]
-    missing_folders: list[str]
-
-
-class FileCheckResult(BaseModel):
-    status: CheckStatus
-    missing_files: list[str]
-
-
-class ProjectCheckResult(BaseModel):
-    project_folder: str
-    folder_check: FolderCheckResult
-    file_check: FileCheckResult
-    overall_status: CheckStatus
-    error: Optional[str] = None
-
-
 class SiteCheckResult(BaseModel):
     site_name: str
     site_url: str
     site_id: str
-    library_name: str
-    project_results: list[ProjectCheckResult] = []
-    overall_status: CheckStatus = CheckStatus.PASS
-    project_count: int = 0
-    pass_count: int = 0
-    fail_count: int = 0
+    drive_id: Optional[str] = None
+    leadership_folder: Optional[str] = None
+    roster_found: bool = False
+    roster_has_files: bool = False
+    failure_reason: Optional[str] = None
+    overall_status: CheckStatus = CheckStatus.FAIL
     error: Optional[str] = None
 
 
@@ -60,7 +40,6 @@ class RunSummary(BaseModel):
     completed_at: Optional[datetime] = None
     site_results: list[SiteCheckResult] = []
     total_sites: int = 0
-    total_projects: int = 0
     pass_count: int = 0
     fail_count: int = 0
     overall_status: CheckStatus = CheckStatus.PASS

@@ -83,7 +83,6 @@ def run(
         config.reporting.output_dir = str(output_dir)
     if site_prefix:
         config.discovery.site_prefixes = [site_prefix]
-        config.discovery.search_keywords = [site_prefix]
 
     try:
         summary = asyncio.run(run_checker(config, config_path=str(config_path)))
@@ -123,8 +122,7 @@ def run(
             send_email_notification(summary, rc.email, report_path=report_path)
 
     typer.echo(
-        f"Run {summary.run_id}: {summary.total_sites} site(s), "
-        f"{summary.total_projects} project(s) — "
+        f"Run {summary.run_id}: {summary.total_sites} site(s) — "
         f"{summary.pass_count} PASS / {summary.fail_count} FAIL — "
         f"overall {summary.overall_status.value}"
     )
@@ -148,7 +146,7 @@ def validate_config(
     typer.echo(
         f"[OK] Config valid — tenant: {config.tenant_id}, "
         f"mode: {config.discovery.mode}, "
-        f"library: {config.sharepoint.library_name}"
+        f"leadership_regex: {config.rules.leadership_folder_regex}"
     )
 
 

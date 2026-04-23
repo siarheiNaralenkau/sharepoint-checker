@@ -1,0 +1,16 @@
+1) Sites pattern: "EPAM SAP SE***"
+2) Directory pattern: "Project SAP-[a-z][[A-Z](3-4)-leadership"
+3) Folders: [Roster]
+4) In folder - check if at least 1 file exists
+5) For the file - check "lastModifiedDate"
+
+[Interface]:
+CLI with browser auth
+
+[Repost]:
+SiteName|ProjectName|Roster(No/lastModifiedDate)|Status(Red/Green)
+
+[Notification Channels]
+1) Email (use recipients list)
+
+2) Optional: Teams notification.
