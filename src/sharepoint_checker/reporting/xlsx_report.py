@@ -57,8 +57,8 @@ def write_xlsx_report(summary: RunSummary, output_dir: str | Path) -> Path:
             site.overall_status.value,
             site.site_url or "",
             site.leadership_folder or "",
-            site.roster_found,
-            site.roster_has_files,
+            site.roaster_found,
+            site.roaster_has_files,
             site.failure_reason or "",
             summary.run_id,
         ]

@@ -21,7 +21,7 @@ FULL_CONFIG = {
     },
     "rules": {
         "leadership_folder_regex": r"^Project SAP-[a-z][A-Z]{3,4}-leadership$",
-        "roster_folder_name": "Roster",
+        "roaster_folder_name": "Roaster",
     },
     "execution": {
         "max_parallel_sites": 2,
@@ -55,7 +55,7 @@ def test_load_full_config():
     path = _write_config(FULL_CONFIG)
     config = load_config(path)
     assert config.rules.leadership_folder_regex == r"^Project SAP-[a-z][A-Z]{3,4}-leadership$"
-    assert config.rules.roster_folder_name == "Roster"
+    assert config.rules.roaster_folder_name == "Roaster"
     assert config.execution.max_parallel_sites == 2
     assert "json" in config.reporting.formats
 

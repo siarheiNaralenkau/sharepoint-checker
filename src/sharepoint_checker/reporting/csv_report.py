@@ -9,19 +9,19 @@ from ..models.result_models import RunSummary
 logger = logging.getLogger(__name__)
 
 _HEADERS = [
-    "run_id",
-    "site_name",
+    "display_name",
+    "status",
     "site_url",
     "leadership_folder",
-    "roster_found",
-    "roster_has_files",
-    "overall_status",
+    "roaster_folder",
+    "roaster_has_files",
     "failure_reason",
-    "error",
+    "reporting_datetime",
 ]
 
 
 def write_csv_report(summary: RunSummary, output_dir: str | Path) -> Path:
+    """Writes all discovered sites (no filtering) to a CSV file."""
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     path = out / "run-summary.csv"
@@ -31,16 +31,15 @@ def write_csv_report(summary: RunSummary, output_dir: str | Path) -> Path:
         writer.writeheader()
         for site in summary.site_results:
             writer.writerow({
-                "run_id": summary.run_id,
-                "site_name": site.site_name,
-                "site_url": site.site_url,
+                "display_name": site.display_name or site.site_name,
+                "status": site.overall_status.value,
+                "site_url": site.site_url or "",
                 "leadership_folder": site.leadership_folder or "",
-                "roster_found": site.roster_found,
-                "roster_has_files": site.roster_has_files,
-                "overall_status": site.overall_status.value,
+                "roaster_folder": site.roaster_found,
+                "roaster_has_files": site.roaster_has_files,
                 "failure_reason": site.failure_reason or "",
-                "error": site.error or "",
+                "reporting_datetime": summary.run_id,
             })
 
-    logger.info("CSV report written to %s", path)
+    logger.info("CSV report written to %s (%d site(s))", path, len(summary.site_results))
     return path

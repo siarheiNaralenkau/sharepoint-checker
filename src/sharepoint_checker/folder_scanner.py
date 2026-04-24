@@ -15,6 +15,7 @@ class DriveItem:
     name: str
     is_folder: bool
     parent_path: str = ""
+    web_url: str = ""
 
     @property
     def full_path(self) -> str:
@@ -33,7 +34,7 @@ class FolderScanner:
             path = root_folder.strip("/")
             url = self._client.url(f"/drives/{drive_id}/root:/{path}:/children")
 
-        items = await self._client.get_paginated(url, {"$select": "id,name,folder,file"})
+        items = await self._client.get_paginated(url, {"$select": "id,name,folder,file,webUrl"})
         return [self._to_item(i, "") for i in items if "folder" in i]
 
     async def list_folder_children(
@@ -67,4 +68,5 @@ class FolderScanner:
             name=raw["name"],
             is_folder="folder" in raw,
             parent_path=parent_path,
+            web_url=raw.get("webUrl", ""),
         )

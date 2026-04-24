@@ -46,7 +46,7 @@ _TEMPLATE = """<!DOCTYPE html>
 
 <h2>Summary</h2>
 <div class="summary-grid">
-  <div class="stat-card"><div class="stat-value">{{ sites | length }}</div><div class="stat-label">Sites in Report</div></div>
+  <div class="stat-card"><div class="stat-value">{{ sites | length }}</div><div class="stat-label">Sites Checked</div></div>
   <div class="stat-card"><div class="stat-value pass">{{ sites | selectattr('overall_status.value', 'eq', 'PASS') | list | length }}</div><div class="stat-label">Passed</div></div>
   <div class="stat-card"><div class="stat-value fail">{{ sites | selectattr('overall_status.value', 'ne', 'PASS') | list | length }}</div><div class="stat-label">Failed</div></div>
 </div>
@@ -58,8 +58,8 @@ _TEMPLATE = """<!DOCTYPE html>
       <th>Site</th>
       <th>Status</th>
       <th>Leadership Folder</th>
-      <th>Roster Found</th>
-      <th>Roster Has Files</th>
+      <th>Roaster Found</th>
+      <th>Roaster Has Files</th>
       <th>Failure Reason</th>
       <th>Reporting DateTime</th>
     </tr>
@@ -77,8 +77,8 @@ _TEMPLATE = """<!DOCTYPE html>
       </td>
       <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
       <td>{{ site.leadership_folder }}</td>
-      <td class="{{ 'yes' if site.roster_found else 'no' }}">{{ "Yes" if site.roster_found else "No" }}</td>
-      <td class="{{ 'yes' if site.roster_has_files else 'no' }}">{{ "Yes" if site.roster_has_files else "No" }}</td>
+      <td class="{{ 'yes' if site.roaster_found else 'no' }}">{{ "Yes" if site.roaster_found else "No" }}</td>
+      <td class="{{ 'yes' if site.roaster_has_files else 'no' }}">{{ "Yes" if site.roaster_has_files else "No" }}</td>
       <td>{{ site.failure_reason or site.error or "" }}</td>
       <td>{{ reporting_datetime }}</td>
     </tr>
@@ -95,11 +95,14 @@ def write_html_report(summary: RunSummary, output_dir: str | Path) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     path = out / "run-summary.html"
 
-    sites = [s for s in summary.site_results if s.leadership_folder is not None]
-
     env = Environment(loader=BaseLoader(), autoescape=True)
     tmpl = env.from_string(_TEMPLATE)
-    html = tmpl.render(summary=summary, sites=sites, reporting_datetime=summary.run_id, CheckStatus=CheckStatus)
+    html = tmpl.render(
+        summary=summary,
+        sites=summary.site_results,
+        reporting_datetime=summary.run_id,
+        CheckStatus=CheckStatus,
+    )
     path.write_text(html, encoding="utf-8")
-    logger.info("HTML report written to %s (%d site(s) after filtering)", path, len(sites))
+    logger.info("HTML report written to %s (%d site(s))", path, len(summary.site_results))
     return path

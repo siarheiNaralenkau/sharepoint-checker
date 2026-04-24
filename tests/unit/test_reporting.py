@@ -1,3 +1,4 @@
+import csv
 import json
 import tempfile
 from datetime import datetime, timezone
@@ -10,11 +11,11 @@ from sharepoint_checker.models.result_models import (
     RunSummary,
     SiteCheckResult,
 )
-from sharepoint_checker.reporting import write_json_report, write_xlsx_report, write_html_report
+from sharepoint_checker.reporting import write_json_report, write_csv_report, write_xlsx_report, write_html_report
 
 
 def _make_summary(fail: bool = False) -> RunSummary:
-    # Fail scenario: leadership folder exists but Roster is missing (stays in report after filtering)
+    # Fail scenario: leadership folder exists but Roaster is missing (stays in report after filtering)
     site = SiteCheckResult(
         site_name="EPAMSAPSEProjectsCSDArea",
         site_url="https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea",
@@ -22,9 +23,9 @@ def _make_summary(fail: bool = False) -> RunSummary:
         display_name="EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership",
         drive_id="drive1",
         leadership_folder="Project SAP-MxG leadership",
-        roster_found=not fail,
-        roster_has_files=not fail,
-        failure_reason=None if not fail else "'Roster' folder not found inside 'Project SAP-MxG leadership'",
+        roaster_found=not fail,
+        roaster_has_files=not fail,
+        failure_reason=None if not fail else "'Roaster' folder not found inside 'Project SAP-MxG leadership'",
         overall_status=CheckStatus.FAIL if fail else CheckStatus.PASS,
     )
     return RunSummary(
@@ -65,7 +66,7 @@ def test_json_report_structure():
     assert "site_id" not in site
     assert "site_name" not in site
     assert "overall_status" not in site
-    assert "roster_found" not in site
+    assert "roaster_found" not in site
 
 
 def test_json_report_filters_null_leadership():
@@ -96,7 +97,7 @@ def test_json_report_fail_site():
     site = data["site_results"][0]
     assert site["status"] == "FAIL"
     assert site["roaster_folder"] is False
-    assert "Roster" in site["failure_reason"]
+    assert "Roaster" in site["failure_reason"]
 
 
 def test_xlsx_report_rows_and_colors():
@@ -166,7 +167,8 @@ def test_html_report_contains_key_data():
     assert "run_id" not in html
 
 
-def test_html_report_filters_null_leadership():
+def test_html_report_shows_all_sites():
+    """HTML must include sites regardless of whether they have a leadership_folder."""
     site_no_folder = SiteCheckResult(
         site_name="NoFolder",
         site_url="https://epam.sharepoint.com/sites/NoFolder",
@@ -181,4 +183,26 @@ def test_html_report_filters_null_leadership():
     with tempfile.TemporaryDirectory() as d:
         path = write_html_report(summary, d)
         html = path.read_text(encoding="utf-8")
-    assert "No Leadership Site" not in html
+    assert "No Leadership Site" in html
+
+
+def test_csv_report_shows_all_sites():
+    """CSV must include all sites including those without a leadership_folder."""
+    site_no_folder = SiteCheckResult(
+        site_name="NoFolder",
+        site_url="https://epam.sharepoint.com/sites/NoFolder",
+        site_id="site-no-folder",
+        display_name="No Leadership Site",
+        leadership_folder=None,
+        overall_status=CheckStatus.FAIL,
+        failure_reason="No folder matching regex found at root",
+    )
+    summary = _make_summary()
+    summary.site_results.append(site_no_folder)
+    with tempfile.TemporaryDirectory() as d:
+        path = write_csv_report(summary, d)
+        with path.open(encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+    assert len(rows) == 2  # all sites present
+    display_names = [r["display_name"] for r in rows]
+    assert "No Leadership Site" in display_names
