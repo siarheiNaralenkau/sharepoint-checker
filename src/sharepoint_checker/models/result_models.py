@@ -25,6 +25,7 @@ class SiteCheckResult(BaseModel):
     site_name: str
     site_url: str
     site_id: str
+    display_name: Optional[str] = None
     drive_id: Optional[str] = None
     leadership_folder: Optional[str] = None
     roster_found: bool = False

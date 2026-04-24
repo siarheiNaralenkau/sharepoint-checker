@@ -22,11 +22,13 @@ _TEMPLATE = """<!DOCTYPE html>
   table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; font-size: .9rem; }
   th { background: #0078d4; color: white; padding: .5rem .75rem; text-align: left; }
   td { padding: .4rem .75rem; border-bottom: 1px solid #eee; vertical-align: top; }
-  tr:hover td { background: #f5f9ff; }
+  .pass-row td { background: #dff6dd; }
+  .fail-row td { background: #fde7e9; }
+  .pass-row:hover td { background: #c8f0c5; }
+  .fail-row:hover td { background: #f9cccf; }
   .pass { color: #107c10; font-weight: bold; }
   .fail { color: #d83b01; font-weight: bold; }
   .error { color: #a80000; font-weight: bold; }
-  .skip { color: #797673; }
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
   .stat-card { background: #f3f2f1; border-radius: 6px; padding: 1rem; text-align: center; }
   .stat-value { font-size: 2rem; font-weight: bold; }
@@ -38,16 +40,15 @@ _TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <h1>SharePoint Structure Checker Report</h1>
-<p><strong>Run ID:</strong> {{ summary.run_id }}<br>
-<strong>Started:</strong> {{ summary.started_at }}<br>
+<p><strong>Started:</strong> {{ summary.started_at }}<br>
 <strong>Completed:</strong> {{ summary.completed_at }}<br>
 <strong>Overall Status:</strong> <span class="{{ summary.overall_status.value | lower }}">{{ summary.overall_status.value }}</span></p>
 
 <h2>Summary</h2>
 <div class="summary-grid">
-  <div class="stat-card"><div class="stat-value">{{ summary.total_sites }}</div><div class="stat-label">Sites Checked</div></div>
-  <div class="stat-card"><div class="stat-value pass">{{ summary.pass_count }}</div><div class="stat-label">Passed</div></div>
-  <div class="stat-card"><div class="stat-value fail">{{ summary.fail_count }}</div><div class="stat-label">Failed</div></div>
+  <div class="stat-card"><div class="stat-value">{{ sites | length }}</div><div class="stat-label">Sites in Report</div></div>
+  <div class="stat-card"><div class="stat-value pass">{{ sites | selectattr('overall_status.value', 'eq', 'PASS') | list | length }}</div><div class="stat-label">Passed</div></div>
+  <div class="stat-card"><div class="stat-value fail">{{ sites | selectattr('overall_status.value', 'ne', 'PASS') | list | length }}</div><div class="stat-label">Failed</div></div>
 </div>
 
 <h2>Site Results</h2>
@@ -55,22 +56,31 @@ _TEMPLATE = """<!DOCTYPE html>
   <thead>
     <tr>
       <th>Site</th>
+      <th>Status</th>
       <th>Leadership Folder</th>
       <th>Roster Found</th>
       <th>Roster Has Files</th>
-      <th>Status</th>
       <th>Failure Reason</th>
+      <th>Reporting DateTime</th>
     </tr>
   </thead>
   <tbody>
-  {% for site in summary.site_results %}
-    <tr>
-      <td><a href="{{ site.site_url }}" target="_blank">{{ site.site_name or site.site_id }}</a></td>
-      <td>{{ site.leadership_folder or "—" }}</td>
+  {% for site in sites %}
+  {% set row_class = 'pass-row' if site.overall_status.value == 'PASS' else 'fail-row' %}
+    <tr class="{{ row_class }}">
+      <td>
+        {% if site.site_url %}
+        <a href="{{ site.site_url }}" target="_blank">{{ site.display_name or site.site_name }}</a>
+        {% else %}
+        {{ site.display_name or site.site_name }}
+        {% endif %}
+      </td>
+      <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
+      <td>{{ site.leadership_folder }}</td>
       <td class="{{ 'yes' if site.roster_found else 'no' }}">{{ "Yes" if site.roster_found else "No" }}</td>
       <td class="{{ 'yes' if site.roster_has_files else 'no' }}">{{ "Yes" if site.roster_has_files else "No" }}</td>
-      <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
       <td>{{ site.failure_reason or site.error or "" }}</td>
+      <td>{{ reporting_datetime }}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -85,9 +95,11 @@ def write_html_report(summary: RunSummary, output_dir: str | Path) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     path = out / "run-summary.html"
 
+    sites = [s for s in summary.site_results if s.leadership_folder is not None]
+
     env = Environment(loader=BaseLoader(), autoescape=True)
     tmpl = env.from_string(_TEMPLATE)
-    html = tmpl.render(summary=summary, CheckStatus=CheckStatus)
+    html = tmpl.render(summary=summary, sites=sites, reporting_datetime=summary.run_id, CheckStatus=CheckStatus)
     path.write_text(html, encoding="utf-8")
-    logger.info("HTML report written to %s", path)
+    logger.info("HTML report written to %s (%d site(s) after filtering)", path, len(sites))
     return path

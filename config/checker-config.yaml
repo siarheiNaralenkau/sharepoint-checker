@@ -26,7 +26,7 @@ reporting:
   output_dir: "./out"
   formats:
     - "json"
-    - "csv"
+    - "xlsx"
     - "html"
   only_failures_in_notification: false
   email:

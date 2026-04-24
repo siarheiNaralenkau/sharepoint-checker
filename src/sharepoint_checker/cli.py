@@ -15,7 +15,7 @@ from .orchestration.run_checker import run_checker
 from .reporting import (
     send_email_notification,
     send_teams_notification,
-    write_csv_report,
+    write_xlsx_report,
     write_html_report,
     write_json_report,
 )
@@ -103,8 +103,8 @@ def run(
 
     if "json" in formats:
         write_json_report(summary, out_dir)
-    if "csv" in formats:
-        write_csv_report(summary, out_dir)
+    if "xlsx" in formats:
+        write_xlsx_report(summary, out_dir)
     if "html" in formats:
         report_path = write_html_report(summary, out_dir)
 
