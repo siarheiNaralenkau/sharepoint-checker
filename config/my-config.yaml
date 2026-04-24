@@ -12,7 +12,7 @@ discovery:
 
 rules:
   leadership_folder_regex: "^Project SAP-[A-Za-z]+ leadership$"
-  roster_folder_name: "Roaster"
+  roaster_folder_name: "Roaster"
 
 execution:
   max_parallel_sites: 4
@@ -24,6 +24,7 @@ reporting:
   output_dir: "./out"
   formats:
     - "json"
+    - "csv"
     - "xlsx"
     - "html"
   only_failures_in_notification: false

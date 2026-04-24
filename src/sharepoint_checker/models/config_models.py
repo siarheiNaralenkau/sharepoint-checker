@@ -15,7 +15,7 @@ class DiscoveryConfig(BaseModel):
 
 class RulesConfig(BaseModel):
     leadership_folder_regex: str = r"^Project SAP-[A-Za-z]+ leadership$"
-    roster_folder_name: str = "Roster"
+    roaster_folder_name: str = "Roaster"
 
 
 class ExecutionConfig(BaseModel):

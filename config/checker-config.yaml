@@ -14,7 +14,7 @@ rules:
   # Regex matched against root-level folder names. First match is used.
   leadership_folder_regex: "^Project SAP-[A-Za-z]+ leadership$"
   # Name of the subfolder inside the leadership folder that must exist and contain files.
-  roster_folder_name: "Roster"
+  roaster_folder_name: "Roaster"
 
 execution:
   max_parallel_sites: 4
@@ -26,6 +26,7 @@ reporting:
   output_dir: "./out"
   formats:
     - "json"
+    - "csv"
     - "xlsx"
     - "html"
   only_failures_in_notification: false

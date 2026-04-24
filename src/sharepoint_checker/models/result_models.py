@@ -28,8 +28,8 @@ class SiteCheckResult(BaseModel):
     display_name: Optional[str] = None
     drive_id: Optional[str] = None
     leadership_folder: Optional[str] = None
-    roster_found: bool = False
-    roster_has_files: bool = False
+    roaster_found: bool = False
+    roaster_has_files: bool = False
     failure_reason: Optional[str] = None
     overall_status: CheckStatus = CheckStatus.FAIL
     error: Optional[str] = None

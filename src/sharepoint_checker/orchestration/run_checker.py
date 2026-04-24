@@ -67,6 +67,8 @@ async def _check_site(
 
     leadership_folder = leadership_matches[0]
     result.leadership_folder = leadership_folder.name
+    if leadership_folder.web_url:
+        result.site_url = leadership_folder.web_url
     logger.info("Site %s: found leadership folder %r", site_url, leadership_folder.name)
 
     # Step 3: List leadership folder children — must be non-empty
@@ -84,14 +86,14 @@ async def _check_site(
         return result
 
     # Step 4: Roster folder must be present
-    roster_name = config.rules.roster_folder_name
+    roster_name = config.rules.roaster_folder_name
     roster_matches = [c for c in children if c.is_folder and c.name.lower() == roster_name.lower()]
     if not roster_matches:
         result.failure_reason = f"'{roster_name}' folder not found inside {leadership_folder.name!r}"
         result.overall_status = CheckStatus.FAIL
         return result
 
-    result.roster_found = True
+    result.roaster_found = True
     roster_folder = roster_matches[0]
 
     # Step 5: Roster must contain at least one file
@@ -109,7 +111,7 @@ async def _check_site(
         result.overall_status = CheckStatus.FAIL
         return result
 
-    result.roster_has_files = True
+    result.roaster_has_files = True
     result.overall_status = CheckStatus.PASS
     logger.info("Site %s: PASS", site_url)
     return result

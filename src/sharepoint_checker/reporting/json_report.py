@@ -15,8 +15,8 @@ def _format_site(site, run_id: str) -> dict:
         "status": site.overall_status.value,
         "site_url": site.site_url,
         "leadership_folder": site.leadership_folder,
-        "roaster_folder": site.roster_found,
-        "roaster_has_files": site.roster_has_files,
+        "roaster_folder": site.roaster_found,
+        "roaster_has_files": site.roaster_has_files,
         "failure_reason": site.failure_reason or "",
         "reporting_datetime": run_id,
     }
