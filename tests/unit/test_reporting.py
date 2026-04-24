@@ -1,25 +1,26 @@
 import json
-import csv
 import tempfile
 from datetime import datetime, timezone
 
 import pytest
+from openpyxl import load_workbook
 
 from sharepoint_checker.models.result_models import (
     CheckStatus,
     RunSummary,
     SiteCheckResult,
 )
-from sharepoint_checker.reporting import write_json_report, write_csv_report, write_html_report
+from sharepoint_checker.reporting import write_json_report, write_xlsx_report, write_html_report
 
 
 def _make_summary(fail: bool = False) -> RunSummary:
     site = SiteCheckResult(
         site_name="EPAMSAPSEProjectsCSDArea",
         site_url="https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea",
-        site_id="site1",
+        site_id="epam.sharepoint.com,abc,def",
+        display_name="EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership",
         drive_id="drive1",
-        leadership_folder="Project SAP-mMXG-leadership" if not fail else None,
+        leadership_folder="Project SAP-MxG leadership" if not fail else None,
         roster_found=not fail,
         roster_has_files=not fail,
         failure_reason=None if not fail else "No folder matching regex found at root",
@@ -42,20 +43,61 @@ def test_json_report_structure():
     with tempfile.TemporaryDirectory() as d:
         path = write_json_report(summary, d)
         data = json.loads(path.read_text())
+
     assert data["run_id"] == "2026-04-20T12:00:00Z"
-    assert data["total_sites"] == 1
-    assert data["overall_status"] == "PASS"
+    assert len(data["site_results"]) == 1
+    site = data["site_results"][0]
+    assert site["display_name"] == "EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership"
+    assert site["status"] == "PASS"
+    assert site["roaster_folder"] is True
+    assert site["roaster_has_files"] is True
+    assert site["failure_reason"] == ""
+    # internal fields must not leak into output
+    assert "site_name" not in site
+    assert "overall_status" not in site
+    assert "roster_found" not in site
 
 
-def test_csv_report_rows():
+def test_json_report_fail_site():
     summary = _make_summary(fail=True)
     with tempfile.TemporaryDirectory() as d:
-        path = write_csv_report(summary, d)
-        with path.open(encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
-    assert len(rows) == 1
-    assert rows[0]["overall_status"] == "FAIL"
-    assert "regex" in rows[0]["failure_reason"]
+        path = write_json_report(summary, d)
+        data = json.loads(path.read_text())
+    site = data["site_results"][0]
+    assert site["status"] == "FAIL"
+    assert site["roaster_folder"] is False
+    assert "regex" in site["failure_reason"]
+
+
+def test_xlsx_report_rows_and_colors():
+    summary = _make_summary(fail=True)
+    with tempfile.TemporaryDirectory() as d:
+        path = write_xlsx_report(summary, d)
+        wb = load_workbook(path)
+        ws = wb.active
+
+    headers = [ws.cell(row=1, column=i).value for i in range(1, 9)]
+    assert "display_name" in headers
+    assert "roaster_folder" in headers
+    assert "status" in headers
+
+    data_row = [ws.cell(row=2, column=i).value for i in range(1, 9)]
+    assert "FAIL" in data_row
+
+    # FAIL row must have red fill (openpyxl reads 6-char hex back with 00 alpha prefix)
+    fill_color = ws.cell(row=2, column=1).fill.fgColor.rgb
+    assert fill_color == "00FFC7CE"
+
+
+def test_xlsx_report_pass_row_green():
+    summary = _make_summary(fail=False)
+    with tempfile.TemporaryDirectory() as d:
+        path = write_xlsx_report(summary, d)
+        wb = load_workbook(path)
+        ws = wb.active
+
+    fill_color = ws.cell(row=2, column=1).fill.fgColor.rgb
+    assert fill_color == "00C6EFCE"
 
 
 def test_html_report_contains_key_data():
@@ -64,5 +106,6 @@ def test_html_report_contains_key_data():
         path = write_html_report(summary, d)
         html = path.read_text(encoding="utf-8")
     assert "2026-04-20T12:00:00Z" in html
-    assert "EPAMSAPSEProjectsCSDArea" in html
+    assert "EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership" in html
     assert "FAIL" in html
+    assert "fail-row" in html

@@ -21,6 +21,7 @@ async def _check_site(
     site_id: str,
     site_name: str,
     site_url: str,
+    display_name: Optional[str],
     config: CheckerConfig,
     client: GraphClient,
 ) -> SiteCheckResult:
@@ -28,6 +29,7 @@ async def _check_site(
         site_name=site_name,
         site_url=site_url,
         site_id=site_id,
+        display_name=display_name,
     )
 
     # Step 1: Resolve drive
@@ -154,6 +156,7 @@ async def run_checker(
                     site_id=site.site_id,
                     site_name=site.site_name,
                     site_url=site.site_url,
+                    display_name=site.display_name,
                     config=config,
                     client=client,
                 )

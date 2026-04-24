@@ -22,11 +22,13 @@ _TEMPLATE = """<!DOCTYPE html>
   table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; font-size: .9rem; }
   th { background: #0078d4; color: white; padding: .5rem .75rem; text-align: left; }
   td { padding: .4rem .75rem; border-bottom: 1px solid #eee; vertical-align: top; }
-  tr:hover td { background: #f5f9ff; }
+  .pass-row td { background: #dff6dd; }
+  .fail-row td { background: #fde7e9; }
+  .pass-row:hover td { background: #c8f0c5; }
+  .fail-row:hover td { background: #f9cccf; }
   .pass { color: #107c10; font-weight: bold; }
   .fail { color: #d83b01; font-weight: bold; }
   .error { color: #a80000; font-weight: bold; }
-  .skip { color: #797673; }
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
   .stat-card { background: #f3f2f1; border-radius: 6px; padding: 1rem; text-align: center; }
   .stat-value { font-size: 2rem; font-weight: bold; }
@@ -34,6 +36,7 @@ _TEMPLATE = """<!DOCTYPE html>
   a { color: #0078d4; }
   .yes { color: #107c10; }
   .no { color: #d83b01; }
+  .site-id { font-size: .75rem; color: #605e5c; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -64,8 +67,14 @@ _TEMPLATE = """<!DOCTYPE html>
   </thead>
   <tbody>
   {% for site in summary.site_results %}
-    <tr>
-      <td><a href="{{ site.site_url }}" target="_blank">{{ site.site_name or site.site_id }}</a></td>
+  {% set row_class = 'pass-row' if site.overall_status.value == 'PASS' else 'fail-row' %}
+    <tr class="{{ row_class }}">
+      <td>
+        {% if site.site_url %}<a href="{{ site.site_url }}" target="_blank">{% endif %}
+        {{ site.display_name or site.site_name }}
+        {% if site.site_url %}</a>{% endif %}
+        <div class="site-id">{{ site.site_id }}</div>
+      </td>
       <td>{{ site.leadership_folder or "—" }}</td>
       <td class="{{ 'yes' if site.roster_found else 'no' }}">{{ "Yes" if site.roster_found else "No" }}</td>
       <td class="{{ 'yes' if site.roster_has_files else 'no' }}">{{ "Yes" if site.roster_has_files else "No" }}</td>
