@@ -240,21 +240,115 @@ records it as a missing-subfolder failure rather than raising an error.
 ## Full request sequence for one site
 
 ```
-1.  GET /sites?search=*&$select=id,name,webUrl,displayName,siteCollection&$top=200
-        → discover all sites, filter by display_name_patterns
+1.  GET /sites?search=EPAM+SAP+SE&$select=id,name,webUrl,displayName,siteCollection&$top=200
+        → discover sites by keyword
+
+1b. GET /sites/<site_id>?$select=id,webUrl          [only if webUrl was missing in step 1]
+        → resolve missing site URL (see §6 below)
 
 2.  GET /sites/<site_id>/drives?$top=200
-        → find drive ID for "Shared Documents"
+        → find the default drive ID
 
 3.  GET /drives/<drive_id>/root/children?$select=id,name,folder,file&$top=200
-        → list root folders, filter by project_folder_regex
+        → list root; find leadership folder by regex
 
-4.  GET /drives/<drive_id>/items/<project_folder_id>/children?$select=id,name,folder,file&$top=200
-        → list project folder contents (check required_folders)
+4.  GET /drives/<drive_id>/items/<leadership_folder_id>/children?$select=id,name,folder,file&$top=200
+        → check non-empty; find Roster subfolder
 
-5.  GET /drives/<drive_id>/items/<project_folder_id>:/Planning:/children?$select=id,name,folder,file&$top=200
-    GET /drives/<drive_id>/items/<project_folder_id>:/Reports:/children?$select=id,name,folder,file&$top=200
-        → list subfolder contents (check required_files), one request per subfolder in rules.required_files
+5.  GET /drives/<drive_id>/items/<roster_folder_id>/children?$select=id,name,folder,file&$top=200
+        → verify at least one file
 ```
 
 Steps 2–5 are repeated in parallel (up to `execution.max_parallel_sites` sites at a time).
+
+---
+
+## 6. Resolving the SharePoint Site URL
+
+### The problem
+
+The Graph `/sites?search=` endpoint does **not** reliably return `webUrl` even when it is
+explicitly included in `$select`. The field is simply absent from the response object:
+
+```json
+{
+  "id": "epam.sharepoint.com,52129f7d-...,b3e5aca0-...",
+  "name": "",
+  "displayName": "EPAM SAP SE Projects, CSD Area-Project SAP-WTF leadership",
+  "siteCollection": { "hostname": "epam.sharepoint.com" }
+}
+```
+
+This is a known Graph API behaviour: the search index does not always expose `webUrl`.
+
+### Fix — direct site lookup by ID
+
+When `webUrl` is missing after the search, fetch it with a direct GET using the site ID:
+
+```
+GET https://graph.microsoft.com/v1.0/sites/<site_id>?$select=id,webUrl
+```
+
+**Example site_id:**
+`epam.sharepoint.com,52129f7d-bff1-4e07-a73f-2b5496970d0f,b3e5aca0-8b46-4747-b70c-44d5c3ddc960`
+
+**Response shape:**
+
+```json
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#sites(id,webUrl)/$entity",
+  "id": "epam.sharepoint.com,52129f7d-bff1-4e07-a73f-2b5496970d0f,b3e5aca0-8b46-4747-b70c-44d5c3ddc960",
+  "webUrl": "https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea-ProjectSAP-WTFleadership"
+}
+```
+
+This endpoint **always** returns `webUrl` for any site the authenticated user can access.
+
+### All fields for a site
+
+To see every available field, omit `$select`:
+
+```
+GET https://graph.microsoft.com/v1.0/sites/<site_id>
+```
+
+**Response includes:**
+
+| Field | Example value |
+|---|---|
+| `id` | `epam.sharepoint.com,52129f7d-...,b3e5aca0-...` |
+| `displayName` | `EPAM SAP SE Projects, CSD Area-Project SAP-WTF leadership` |
+| `name` | `EPAMSAPSEProjectsCSDArea-ProjectSAP-WTFleadership` |
+| `webUrl` | `https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea-ProjectSAP-WTFleadership` |
+| `createdDateTime` | `2023-01-15T09:00:00Z` |
+| `lastModifiedDateTime` | `2026-04-20T14:32:00Z` |
+
+### Postman collection — three useful requests
+
+#### 6a. Search (may omit webUrl)
+
+```
+GET https://graph.microsoft.com/v1.0/sites?search=EPAM+SAP+SE&$select=id,name,webUrl,displayName,siteCollection&$top=200
+```
+
+Use this to get site IDs. Copy an `id` value from the response for the requests below.
+
+#### 6b. Resolve URL by site ID
+
+```
+GET https://graph.microsoft.com/v1.0/sites/epam.sharepoint.com,52129f7d-bff1-4e07-a73f-2b5496970d0f,b3e5aca0-8b46-4747-b70c-44d5c3ddc960?$select=id,webUrl
+```
+
+Paste the full site ID (including the hostname and both GUIDs) into the URL. Returns `webUrl`.
+
+#### 6c. Full site details
+
+```
+GET https://graph.microsoft.com/v1.0/sites/epam.sharepoint.com,52129f7d-bff1-4e07-a73f-2b5496970d0f,b3e5aca0-8b46-4747-b70c-44d5c3ddc960
+```
+
+Returns all site metadata — useful for exploring what fields the API exposes.
+
+> **Note on site ID format:** Graph site IDs always follow the pattern
+> `<hostname>,<site-collection-guid>,<web-guid>`. All three parts separated by commas
+> are required when using the ID directly in a URL path.
