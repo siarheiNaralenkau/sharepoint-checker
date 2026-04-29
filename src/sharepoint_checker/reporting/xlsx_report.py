@@ -12,14 +12,15 @@ from ..models.result_models import RunSummary, CheckStatus
 logger = logging.getLogger(__name__)
 
 _HEADERS = [
-    "display_name",
-    "status",
-    "site_url",
-    "leadership_folder",
-    "roaster_folder",
-    "roaster_has_files",
-    "failure_reason",
-    "reporting_datetime",
+    "Site Name",
+    "Leadership Folder",
+    "Status",
+    "Failure Reason",
+    "Site URL",
+    "Roaster Folder",
+    "Roaster has files",
+    "File modification date",
+    "Generated Time",
 ]
 
 _FILL_PASS = PatternFill(fill_type="solid", fgColor="C6EFCE")   # Excel green
@@ -32,7 +33,10 @@ _ALIGN_WRAP = Alignment(wrap_text=True, vertical="top")
 def write_xlsx_report(summary: RunSummary, output_dir: str | Path) -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "run-summary.xlsx"
+    local_dt = summary.started_at.astimezone()
+    date_str = local_dt.strftime("%d-%m-%Y_%H-%M-%S")
+    generated_time = local_dt.strftime("%d/%m/%Y %H:%M:%S")
+    path = out / f"SAP SE Account - Roaster Review - {date_str}.xlsx"
 
     sites = [s for s in summary.site_results if s.leadership_folder is not None]
 
@@ -49,18 +53,19 @@ def write_xlsx_report(summary: RunSummary, output_dir: str | Path) -> Path:
         cell.alignment = _ALIGN_WRAP
 
     # Data rows
-    _SITE_URL_COL = _HEADERS.index("site_url") + 1
+    _SITE_URL_COL = _HEADERS.index("Site URL") + 1
 
     for site in sites:
         row = [
-            site.display_name or site.site_name,
-            site.overall_status.value,
-            site.site_url or "",
+            site.report_display_name,
             site.leadership_folder or "",
+            site.overall_status.value,
+            site.failure_reason or "",
+            site.site_url or "",
             site.roaster_found,
             site.roaster_has_files,
-            site.failure_reason or "",
-            summary.run_id,
+            site.roaster_last_modified or "",
+            generated_time,
         ]
         ws.append(row)
 
@@ -78,7 +83,7 @@ def write_xlsx_report(summary: RunSummary, output_dir: str | Path) -> Path:
             url_cell.font = Font(color="0078D4", underline="single")
 
     # Column widths
-    col_widths = [50, 10, 60, 35, 16, 18, 55, 22]
+    col_widths = [50, 35, 10, 55, 60, 16, 18, 22, 22]
     for col_idx, width in enumerate(col_widths, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 

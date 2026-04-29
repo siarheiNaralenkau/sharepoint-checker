@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from .graph_client import GraphClient
@@ -16,6 +17,7 @@ class DriveItem:
     is_folder: bool
     parent_path: str = ""
     web_url: str = ""
+    modified_date: Optional[datetime] = None
 
     @property
     def full_path(self) -> str:
@@ -42,7 +44,7 @@ class FolderScanner:
     ) -> list[DriveItem]:
         """Lists immediate children (folders and files) of a folder."""
         url = self._client.url(f"/drives/{drive_id}/items/{folder_id}/children")
-        items = await self._client.get_paginated(url, {"$select": "id,name,folder,file"})
+        items = await self._client.get_paginated(url, {"$select": "id,name,folder,file,lastModifiedDateTime"})
         return [self._to_item(i, parent_path) for i in items]
 
     async def list_subfolder_children(
@@ -63,10 +65,13 @@ class FolderScanner:
 
     @staticmethod
     def _to_item(raw: dict, parent_path: str) -> DriveItem:
+        raw_ts = raw.get("lastModifiedDateTime")
+        modified_date = datetime.fromisoformat(raw_ts) if raw_ts else None
         return DriveItem(
             item_id=raw["id"],
             name=raw["name"],
             is_folder="folder" in raw,
             parent_path=parent_path,
             web_url=raw.get("webUrl", ""),
+            modified_date=modified_date,
         )

@@ -30,9 +30,29 @@ class SiteCheckResult(BaseModel):
     leadership_folder: Optional[str] = None
     roaster_found: bool = False
     roaster_has_files: bool = False
+    roaster_last_modified: Optional[str] = None
     failure_reason: Optional[str] = None
     overall_status: CheckStatus = CheckStatus.FAIL
     error: Optional[str] = None
+
+    @property
+    def report_display_name(self) -> str:
+        """Site display name with the leadership folder suffix stripped.
+
+        SharePoint site titles often embed the leadership folder name
+        (e.g. "CSD Area-Project SAP-MxG leadership"). Since the leadership
+        folder is shown in a dedicated column, we remove the variable suffix
+        but keep the first word of the folder name ("Project") because it is
+        part of the site-naming convention.
+        """
+        name = self.display_name or self.site_name
+        if not self.leadership_folder:
+            return name
+        lf = self.leadership_folder
+        if not name.lower().endswith(lf.lower()):
+            return name
+        first_word = lf.split()[0]
+        return name[: len(name) - len(lf) + len(first_word)].rstrip()
 
 
 class RunSummary(BaseModel):

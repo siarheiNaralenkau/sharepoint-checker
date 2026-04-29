@@ -56,30 +56,32 @@ _TEMPLATE = """<!DOCTYPE html>
   <thead>
     <tr>
       <th>Site</th>
-      <th>Status</th>
       <th>Leadership Folder</th>
+      <th>Status</th>
+      <th>Failure Reason</th>
+      <th>Site URL</th>
       <th>Roaster Found</th>
       <th>Roaster Has Files</th>
-      <th>Failure Reason</th>
-      <th>Reporting DateTime</th>
+      <th>Last Modified Date</th>
+      <th>Generated Time</th>
     </tr>
   </thead>
   <tbody>
   {% for site in sites %}
   {% set row_class = 'pass-row' if site.overall_status.value == 'PASS' else 'fail-row' %}
     <tr class="{{ row_class }}">
+      <td>{{ site.report_display_name }}</td>
+      <td>{{ site.leadership_folder }}</td>
+      <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
+      <td>{{ site.failure_reason or site.error or "" }}</td>
       <td>
         {% if site.site_url %}
-        <a href="{{ site.site_url }}" target="_blank">{{ site.display_name or site.site_name }}</a>
-        {% else %}
-        {{ site.display_name or site.site_name }}
+        <a href="{{ site.site_url }}" target="_blank">{{ site.site_url }}</a>
         {% endif %}
       </td>
-      <td class="{{ site.overall_status.value | lower }}">{{ site.overall_status.value }}</td>
-      <td>{{ site.leadership_folder }}</td>
       <td class="{{ 'yes' if site.roaster_found else 'no' }}">{{ "Yes" if site.roaster_found else "No" }}</td>
       <td class="{{ 'yes' if site.roaster_has_files else 'no' }}">{{ "Yes" if site.roaster_has_files else "No" }}</td>
-      <td>{{ site.failure_reason or site.error or "" }}</td>
+      <td>{{ site.roaster_last_modified or "" }}</td>
       <td>{{ reporting_datetime }}</td>
     </tr>
   {% endfor %}
@@ -93,14 +95,17 @@ _TEMPLATE = """<!DOCTYPE html>
 def write_html_report(summary: RunSummary, output_dir: str | Path) -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "run-summary.html"
+    local_dt = summary.started_at.astimezone()
+    date_str = local_dt.strftime("%d-%m-%Y_%H-%M-%S")
+    generated_time = local_dt.strftime("%d/%m/%Y %H:%M:%S")
+    path = out / f"SAP SE Account - Roaster Review - {date_str}.html"
 
     env = Environment(loader=BaseLoader(), autoescape=True)
     tmpl = env.from_string(_TEMPLATE)
     html = tmpl.render(
         summary=summary,
         sites=summary.site_results,
-        reporting_datetime=summary.run_id,
+        reporting_datetime=generated_time,
         CheckStatus=CheckStatus,
     )
     path.write_text(html, encoding="utf-8")

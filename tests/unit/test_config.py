@@ -55,9 +55,16 @@ def test_load_full_config():
     path = _write_config(FULL_CONFIG)
     config = load_config(path)
     assert config.rules.leadership_folder_regex == r"^Project SAP-[a-z][A-Z]{3,4}-leadership$"
-    assert config.rules.roaster_folder_name == "Roaster"
+    assert config.rules.roaster_folder_name == ["Roaster"]
     assert config.execution.max_parallel_sites == 2
     assert "json" in config.reporting.formats
+
+
+def test_roaster_folder_pipe_separated():
+    config_data = {**MINIMAL_CONFIG, "rules": {"roaster_folder_name": "Roaster|Roster"}}
+    path = _write_config(config_data)
+    config = load_config(path)
+    assert config.rules.roaster_folder_name == ["Roaster", "Roster"]
 
 
 def test_missing_file_raises():
