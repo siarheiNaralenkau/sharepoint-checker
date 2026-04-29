@@ -86,10 +86,12 @@ async def _check_site(
         return result
 
     # Step 4: Roster folder must be present
-    roster_name = config.rules.roaster_folder_name
-    roster_matches = [c for c in children if c.is_folder and c.name.lower() == roster_name.lower()]
+    roster_names = config.rules.roaster_folder_name
+    roster_names_lower = {n.lower() for n in roster_names}
+    roster_matches = [c for c in children if c.is_folder and c.name.lower() in roster_names_lower]
     if not roster_matches:
-        result.failure_reason = f"'{roster_name}' folder not found inside {leadership_folder.name!r}"
+        names_display = " | ".join(roster_names)
+        result.failure_reason = f"None of [{names_display}] folders found inside {leadership_folder.name!r}"
         result.overall_status = CheckStatus.FAIL
         return result
 
@@ -107,11 +109,14 @@ async def _check_site(
 
     roster_files = [c for c in roster_children if not c.is_folder]
     if not roster_files:
-        result.failure_reason = f"'{roster_name}' folder contains no files"
+        result.failure_reason = f"'{roster_folder.name}' folder contains no files"
         result.overall_status = CheckStatus.FAIL
         return result
 
     result.roaster_has_files = True
+    dates = [f.modified_date for f in roster_files if f.modified_date is not None]
+    if dates:
+        result.roaster_last_modified = max(dates).strftime("%d/%m/%Y %H:%M")
     result.overall_status = CheckStatus.PASS
     logger.info("Site %s: PASS", site_url)
     return result

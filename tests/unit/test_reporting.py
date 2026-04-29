@@ -46,22 +46,22 @@ def test_json_report_structure():
         path = write_json_report(summary, d)
         data = json.loads(path.read_text())
 
-    # run_id renamed to reporting_datetime and moved to last key
     assert "run_id" not in data
-    assert data["reporting_datetime"] == "2026-04-20T12:00:00Z"
-    assert list(data.keys())[-1] == "reporting_datetime"
+    assert "/" in data["generated_time"]  # dd/MM/yyyy HH:MM:SS format
+    assert list(data.keys())[-1] == "generated_time"
 
     assert len(data["site_results"]) == 1
     site = data["site_results"][0]
     keys = list(site.keys())
     assert keys[0] == "display_name"
-    assert keys[1] == "status"
+    assert keys[1] == "leadership_folder"
+    assert keys[2] == "status"
     assert site["status"] == "PASS"
     assert site["site_url"] == "https://epam.sharepoint.com/sites/EPAMSAPSEProjectsCSDArea"
     assert site["roaster_folder"] is True
     assert site["roaster_has_files"] is True
     assert site["failure_reason"] == ""
-    assert site["reporting_datetime"] == "2026-04-20T12:00:00Z"
+    assert "/" in site["generated_time"]  # dd/MM/yyyy HH:MM:SS format
     # internal fields must not leak
     assert "site_id" not in site
     assert "site_name" not in site
@@ -107,16 +107,16 @@ def test_xlsx_report_rows_and_colors():
         wb = load_workbook(path)
         ws = wb.active
 
-    headers = [ws.cell(row=1, column=i).value for i in range(1, 9)]
-    # display_name first, status second, site_url third, reporting_datetime last
-    assert headers[0] == "display_name"
-    assert headers[1] == "status"
-    assert headers[2] == "site_url"
-    assert headers[-1] == "reporting_datetime"
-    assert "roaster_folder" in headers
+    headers = [ws.cell(row=1, column=i).value for i in range(1, 10)]
+    assert headers[0] == "Site Name"
+    assert headers[1] == "Leadership Folder"
+    assert headers[2] == "Status"
+    assert headers[-1] == "Generated Time"
+    assert "Roaster Folder" in headers
+    assert "File modification date" in headers
     assert "site_id" not in headers
 
-    data_row = [ws.cell(row=2, column=i).value for i in range(1, 9)]
+    data_row = [ws.cell(row=2, column=i).value for i in range(1, 10)]
     assert "FAIL" in data_row
 
     # FAIL row must have red fill (openpyxl reads 6-char hex back with 00 alpha prefix)
@@ -160,10 +160,11 @@ def test_html_report_contains_key_data():
         path = write_html_report(summary, d)
         html = path.read_text(encoding="utf-8")
     assert "2026-04-20T12:00:00Z" in html
-    assert "EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership" in html
+    assert "EPAM SAP SE Projects, CSD Area-Project" in html
+    assert "EPAM SAP SE Projects, CSD Area-Project SAP-MxG leadership" not in html
     assert "FAIL" in html
     assert "fail-row" in html
-    assert "Reporting DateTime" in html
+    assert "Generated Time" in html
     assert "run_id" not in html
 
 

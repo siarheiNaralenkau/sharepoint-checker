@@ -13,7 +13,8 @@ discovery:
 rules:
   # Regex matched against root-level folder names. First match is used.
   leadership_folder_regex: "^Project SAP-[A-Za-z]+ leadership$"
-  # Name of the subfolder inside the leadership folder that must exist and contain files.
+  # Name(s) of the subfolder inside the leadership folder that must exist and contain files.
+  # Multiple names can be separated by "|" (e.g. "Roaster|Roster").
   roaster_folder_name: "Roaster"
 
 execution:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Optional, Union
+from pydantic import BaseModel, Field, field_validator
 
 
 class DelegatedAuthConfig(BaseModel):
@@ -15,7 +15,14 @@ class DiscoveryConfig(BaseModel):
 
 class RulesConfig(BaseModel):
     leadership_folder_regex: str = r"^Project SAP-[A-Za-z]+ leadership$"
-    roaster_folder_name: str = "Roaster"
+    roaster_folder_name: list[str] = Field(default_factory=lambda: ["Roaster"])
+
+    @field_validator("roaster_folder_name", mode="before")
+    @classmethod
+    def parse_pipe_separated(cls, v: Union[str, list]) -> list[str]:
+        if isinstance(v, str):
+            return [name.strip() for name in v.split("|") if name.strip()]
+        return v
 
 
 class ExecutionConfig(BaseModel):
